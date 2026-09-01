@@ -1,56 +1,148 @@
 export * from './global';
 
-export function onReady(fn: () => void) {
-  // Currently the Goja environment executes main.js when ready.
-  // We wrap it in a microtask/setTimeout to ensure all sync script loading is done.
+// ─────────────────────────────────────────────────────────────────────────────
+// onReady — safe entry point for extension scripts
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Run a callback once the Aether sandbox is fully initialised.
+ *
+ * @example
+ * import { onReady } from '@aethermc/sdk';
+ * onReady(() => {
+ *   Aether.ui.registerSidebarPage({ id: 'my-page', label: 'My Page', url: 'ui/index.html' });
+ * });
+ */
+export function onReady(fn: () => void): void {
   if (typeof setTimeout !== 'undefined') {
     setTimeout(fn, 0);
   } else {
-    // Fallback if setTimeout isn't polyfilled in Goja
     fn();
   }
 }
 
-export function createLogger(name: string) {
+// ─────────────────────────────────────────────────────────────────────────────
+// createLogger — namespaced console logger
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface Logger {
+  info(...args: unknown[]): void;
+  warn(...args: unknown[]): void;
+  error(...args: unknown[]): void;
+}
+
+/**
+ * Create a simple namespaced logger that prefixes all output with the given name.
+ *
+ * @example
+ * const log = createLogger('my-extension');
+ * log.info('Extension started!');
+ */
+export function createLogger(name: string): Logger {
   return {
-    info: (...args: any[]) => console.log(`[INFO] [${name}]`, ...args),
-    warn: (...args: any[]) => console.warn(`[WARN] [${name}]`, ...args),
-    error: (...args: any[]) => console.error(`[ERROR] [${name}]`, ...args),
+    info:  (...args) => console.log(`[INFO]  [${name}]`, ...args),
+    warn:  (...args) => console.warn(`[WARN]  [${name}]`, ...args),
+    error: (...args) => console.error(`[ERROR] [${name}]`, ...args),
   };
 }
 
-export function defineProvider(spec: {
-  id: string;
-  name: string;
-  description: string;
-  onLaunch: (ctx: any) => any;
-}) {
-  if (!Aether || !Aether.launcher) {
-    throw new Error("Aether.launcher API is not available. Did you request the 'launcher:modloader' permission?");
-  }
-  
-  if (!spec.id || !spec.name || !spec.onLaunch) {
-    throw new Error("Provider spec must include 'id', 'name', and 'onLaunch'.");
-  }
+// ─────────────────────────────────────────────────────────────────────────────
+// defineProvider — type-safe mod loader registration
+// ─────────────────────────────────────────────────────────────────────────────
 
+import type { ModLoaderSpec } from './global';
+
+/**
+ * Register a custom mod loader with Aether.
+ * A convenience wrapper around `Aether.launcher.registerModLoader()` with
+ * validation and a clear error message if the required permission is missing.
+ *
+ * Requires manifest permission: `launcher:modloader`
+ *
+ * @example
+ * import { onReady, defineProvider } from '@aethermc/sdk';
+ * onReady(() => {
+ *   defineProvider({
+ *     id: 'my-loader',
+ *     name: 'My Loader',
+ *     description: 'A custom mod loader.',
+ *     onLaunch: (ctx) => ({ jvmArgs: ['-Dmy.flag=true'] }),
+ *   });
+ * });
+ */
+export function defineProvider(spec: ModLoaderSpec): void {
+  if (!Aether?.launcher?.registerModLoader) {
+    throw new Error(
+      "Aether.launcher is not available. " +
+      "Add \"launcher:modloader\" to your manifest.json permissions."
+    );
+  }
+  if (!spec.id || !spec.name || typeof spec.onLaunch !== 'function') {
+    throw new Error("defineProvider: spec must include 'id', 'name', and 'onLaunch'.");
+  }
   Aether.launcher.registerModLoader(spec);
 }
 
-export function assertPermission(permissionName: string) {
-  // A crude check: we can infer permission by checking if the corresponding API exists.
-  // In a future version, Aether might expose Aether.permissions.has(perm).
-  const permMap: Record<string, () => boolean> = {
-    'ui:sidebar': () => !!(Aether?.ui?.registerSidebarPage),
-    'instances:list': () => !!(Aether?.instances?.list),
-    'mods:install': () => !!(Aether?.instances?.installMod),
-    'network:http': () => !!(Aether?.http?.get),
-    'fs:download': () => !!(Aether?.fs?.download),
-    'launcher:modloader': () => !!(Aether?.launcher?.registerModLoader),
-    'skin:export': () => !!(Aether?.skins?.export),
-  };
+// ─────────────────────────────────────────────────────────────────────────────
+// assertPermission — runtime capability assertion
+// ─────────────────────────────────────────────────────────────────────────────
 
-  const check = permMap[permissionName];
-  if (check && !check()) {
-    throw new Error(`Permission denied or unavailable: '${permissionName}'. Please declare it in your manifest.json.`);
+/** All permission strings recognised by the Aether sandbox. */
+export type AetherPermission =
+  | 'ui:sidebar'
+  | 'ui:dialogs'
+  | 'instances:list'
+  | 'mods:install'
+  | 'mods:list'
+  | 'mods:delete'
+  | 'mods:toggle'
+  | 'modpacks:install'
+  | 'resourcepacks:install'
+  | 'shaderpacks:install'
+  | 'screenshots:read'
+  | 'screenshots:write'
+  | 'network:http'
+  | 'fs:download'
+  | 'launcher:modloader'
+  | 'discord:presence'
+  | 'skin:export';
+
+/** Maps each permission to a function that detects whether the API is live. */
+const permissionProbes: Partial<Record<AetherPermission, () => boolean>> = {
+  'ui:sidebar':            () => !!(Aether?.ui?.registerSidebarPage),
+  'ui:dialogs':            () => !!(Aether?.ui?.openDialog),
+  'instances:list':        () => !!(Aether?.instances?.list),
+  'mods:install':          () => !!(Aether?.instances?.installMod),
+  'mods:list':             () => !!(Aether?.instances?.listMods),
+  'mods:delete':           () => !!(Aether?.instances?.deleteMod),
+  'mods:toggle':           () => !!(Aether?.instances?.toggleMod),
+  'modpacks:install':      () => !!(Aether?.instances?.installModpack),
+  'resourcepacks:install': () => !!(Aether?.instances?.installResourcePack),
+  'shaderpacks:install':   () => !!(Aether?.instances?.installShaderPack),
+  'screenshots:read':      () => !!(Aether?.instances?.listScreenshots),
+  'screenshots:write':     () => !!(Aether?.instances?.deleteScreenshot),
+  'network:http':          () => !!(Aether?.http?.get),
+  'fs:download':           () => !!(Aether?.fs?.download),
+  'launcher:modloader':    () => !!(Aether?.launcher?.registerModLoader),
+  'discord:presence':      () => !!(Aether?.discord?.setActivity),
+  'skin:export':           () => !!(Aether?.skins?.export),
+};
+
+/**
+ * Assert that a permission was granted and the corresponding API is available.
+ * Throws a descriptive error if the permission is missing, making it easy to
+ * surface misconfigurations at startup rather than deep in your extension logic.
+ *
+ * @example
+ * assertPermission('mods:install');
+ * Aether.instances.installMod(instanceId, jarName, url);
+ */
+export function assertPermission(permission: AetherPermission): void {
+  const probe = permissionProbes[permission];
+  if (probe && !probe()) {
+    throw new Error(
+      `Permission '${permission}' is not available. ` +
+      `Add it to the permissions array in your manifest.json.`
+    );
   }
 }
