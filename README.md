@@ -170,15 +170,16 @@ onReady(() => {
 
 ## Distribution & Licensing
 
-Extensions built with this SDK may be **open-source or closed-source** — your choice. However, **distribution through the Aether Gallery requires review and approval by the Aether team**.
+Extensions built with this SDK may be **open-source or closed-source** — your choice. **Distribution through the official Aether Gallery requires review and approval by the Aether team.**
 
 See [LICENSE](LICENSE) for the full terms. Key points:
 
-- ✅ Closed-source extensions are allowed
-- ✅ You own your extension's code
-- ✅ Aether reviews extensions before Gallery listing (security, quality, policy)
-- ❌ You may not use this SDK to build a competing launcher or extension platform
-- ❌ You may not distribute extensions outside approved channels without written permission from Aether
+- 🟢 **Open Source Launcher Forks (GPL-3.0)**: The Aether Launcher itself is 100% open-source under GPL-3.0. Anyone can freely fork the launcher, modify the codebase, or create custom extension APIs/runtimes on their fork.
+- ✅ **Closed-Source Extensions Allowed**: Extensions built using this SDK are permitted to be proprietary or closed-source.
+- ✅ **Code Ownership**: You retain full ownership of your extension's source code.
+- ✅ **Official Gallery Review**: Aether reviews all extensions submitted to the official Gallery for security, safety, and policy compliance.
+- ❌ **No Impersonation**: Extensions built with this official SDK (`@aethermc/sdk`) may not be distributed through unapproved third-party channels that impersonate the official Gallery.
 
 To submit your extension for review:  
 → [Aether-Extensions Registry](https://github.com/Aether-Launcher/Aether-Extensions)
+

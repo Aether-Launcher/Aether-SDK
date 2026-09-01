@@ -1,90 +1,83 @@
 AETHER EXTENSION API LICENSE
-Version 1.0 — September 2026
+Version 1.1 — September 2026
 
 Copyright (c) 2026 Aether Launcher
 
+PREAMBLE & OPEN SOURCE LAUNCHER FORKING
+
+Aether Launcher itself is free and open-source software released under the
+GNU General Public License v3.0 (GPL-3.0). Nothing in this API License limits,
+restricts, or alters your rights under the GPL-3.0 to fork, modify, redistribute,
+or create derivative works of the Aether Launcher source code, nor does it
+prevent anyone from creating alternative extension systems or independent
+marketplaces for launcher forks.
+
+This License applies exclusively to the official Aether Extension API & SDK
+(`@aethermc/sdk`) and the distribution of Extensions through the official
+Aether Extension Gallery.
+
 DEFINITIONS
 
-"Aether" means Aether Launcher and its contributors.
-"API" means the Aether Extension API and SDK, including all TypeScript type
-definitions, helper utilities, and documentation contained in this repository.
-"Extension" means any software application, plugin, or module built using the API.
-"Gallery" means the official Aether Extension Gallery, operated by Aether.
-"You" means the individual or organisation exercising rights under this license.
+"Aether" means the official Aether Launcher project and its maintainers.
+"API" means the official Aether Extension API and SDK (`@aethermc/sdk`), including
+TypeScript type definitions, helper utilities, and documentation provided in this repository.
+"Extension" means any software module or plugin built using this API.
+"Gallery" means the official Aether Extension Gallery operated at
+https://github.com/Aether-Launcher/Aether-Extensions.
+"You" means the individual or entity exercising rights under this License.
 
 GRANT OF RIGHTS
 
-Subject to the terms of this license, Aether grants You a worldwide,
+Subject to the terms of this License, Aether grants You a worldwide,
 royalty-free, non-exclusive license to:
 
   1. Use the API to develop Extensions, including Extensions that are
      proprietary or closed-source.
-  2. Distribute Extensions to end users, provided that distribution occurs
-     exclusively through channels approved by Aether (see DISTRIBUTION below).
-  3. Modify the API for personal use in developing your Extension. You may
-     not redistribute modified versions of the API itself.
+  2. Distribute Extensions built using this API to end users through channels
+     approved by Aether (see DISTRIBUTION below).
+  3. Modify the API locally for development testing of your Extension.
 
-DISTRIBUTION
+DISTRIBUTION & GALLERY REVIEW
 
-You may distribute Extensions built using this API only through the following
-approved channels:
-
-  a. The official Aether Gallery, subject to the review and approval process
-     described at https://github.com/Aether-Launcher/Aether-Extensions.
-  b. Any other distribution channel explicitly approved in writing by Aether.
-
-Before any Extension may be distributed through the Gallery, it must be
-submitted to Aether for review. Aether reserves the right to approve, reject,
-or remove any Extension from the Gallery at its sole discretion, including for
-reasons of security, quality, policy compliance, or user safety.
-
-Extensions may be closed-source. You are not required to publish your
-Extension's source code. However, Aether reserves the right to require source
-access or a binary audit as part of the review process for any Extension.
+  1. Official Gallery Distribution: To distribute an Extension through the
+     official Aether Gallery, the Extension must be submitted to Aether for
+     review. Aether maintains sole discretion over approval, trust tier
+     assignment, or removal of Extensions from the official Gallery for security,
+     safety, or policy reasons.
+  2. Closed-Source Extensions: Extensions built using this API are permitted to
+     be closed-source. Source code publication is not required. However, Aether
+     reserves the right to require source access or a binary security audit
+     during the Gallery review process.
+  3. Alternative Extension Runtimes: If a developer or launcher fork does not
+     wish to comply with these Gallery review terms, they are free to implement
+     an independent extension API or alternative runtime on their fork under GPL-3.0.
 
 RESTRICTIONS
 
 You may not:
 
-  1. Use the API to build a product that competes with Aether (including any
-     Minecraft launcher, extension platform, or extension marketplace).
-  2. Distribute the API itself, or a modified version of it, as a standalone
-     product or as part of another SDK or framework.
-  3. Sublicense or transfer your rights under this license to any third party
-     without prior written consent from Aether.
+  1. Distribute Extensions built with this official API (`@aethermc/sdk`) through
+     third-party marketplaces or unapproved distribution channels that impersonate
+     the official Aether Gallery.
+  2. Distribute the API (`@aethermc/sdk`) itself, or modified versions of it,
+     as a standalone SDK under a different name without prior written consent from Aether.
+  3. Use the official Aether name, logos, or trust badges to imply official
+     endorsement of an unapproved Extension.
   4. Remove or alter any copyright, trademark, or attribution notices in the API.
-  5. Use the Aether name, logo, or trademarks to imply endorsement of your
-     Extension without express written permission from Aether.
 
-INTELLECTUAL PROPERTY
+INTELLECTUAL PROPERTY & OWNERSHIP
 
-The API remains the exclusive property of Aether. This license grants You no
-ownership rights in the API. Extensions You build using the API are Your own
-property, subject to the distribution restrictions above.
+The API remains the property of Aether. Extensions You build using the API
+remain Your exclusive property.
 
 NO WARRANTY
 
-THE API IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
-INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
-PARTICULAR PURPOSE, AND NON-INFRINGEMENT. IN NO EVENT SHALL AETHER BE LIABLE
-FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
-TORT, OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE API OR ITS USE.
+THE API IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED.
+IN NO EVENT SHALL AETHER BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY
+ARISING FROM THE USE OF THE API OR ITS DISTRIBUTION.
 
 TERMINATION
 
-This license terminates automatically if You breach any of its terms. Upon
-termination, You must cease all use and distribution of the API and any
-Extensions distributed through the Gallery under this license. Aether may
-also remove any Extensions from the Gallery upon termination.
-
-CHANGES TO THIS LICENSE
-
-Aether reserves the right to update this license for future versions of the API.
-Extensions already in distribution under a prior version of this license will
-not be retroactively affected by new terms, unless the Extension is updated or
-resubmitted for review.
-
-CONTACT
-
-For licensing inquiries, submission guidelines, or partnership requests:
-  https://github.com/Aether-Launcher
+This License terminates automatically if You breach any of its terms. Upon
+termination, You must cease using the API and distribution through the Gallery.
+Aether may also remove any Extensions from the Gallery upon termination.
