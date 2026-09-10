@@ -30,7 +30,14 @@
   ],
   "author": "Aether",
   "license": "SEE LICENSE IN LICENSE",
-  "type": "commonjs",
+  "peerDependencies": {
+    "@aethermc/cli": ">=1.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@aethermc/cli": {
+      "optional": true
+    }
+  },
   "devDependencies": {
     "tsup": "^8.5.1",
     "typescript": "^7.0.2"
