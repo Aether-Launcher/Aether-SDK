@@ -1,11 +1,11 @@
 # Aether SDK (`@aethermc/sdk`)
 
 <p align="center">
-  <a href="https://discord.gg/pQc9NnGhpG">
+    <a href="https://discord.gg/hyPWTs9FfM">
     <img src="https://img.shields.io/badge/discord-Join%20our%20Discord-5865F2?logo=discord&logoColor=white&style=for-the-badge" alt="Discord">
   </a>
   <img src="https://img.shields.io/badge/license-Aether%20Extension%20API%20License-blue?style=for-the-badge" alt="License">
-  <img src="https://img.shields.io/badge/version-1.1.0-green?style=for-the-badge" alt="Version">
+  <img src="https://img.shields.io/badge/version-1.2.0-green?style=for-the-badge" alt="Version">
 </p>
 
 The official TypeScript SDK for building extensions for the **Aether Minecraft Launcher**. Provides full type definitions for the `Aether` global API injected by the sandbox runtime, plus helper utilities for safe permission checking, logging, and mod loader registration.
@@ -43,6 +43,11 @@ Every capability in the API must be declared in your extension's `manifest.json`
 | `launcher:modloader` | `Aether.launcher.registerModLoader` |
 | `discord:presence` | `Aether.discord.setActivity`, `clearActivity` |
 | `skin:export` | `Aether.skins.export` |
+| `servers:list` | `Aether.servers.list`, `ping`, `listWithStatus` |
+| `servers:manage` | `Aether.servers.create`, `listServers`, `delete`, `readFile`, `writeFile` |
+| `servers:process` | `Aether.servers.start`, `stop`, `status`, `send`, `eulaStatus`, `acceptEula`, `recentLogs` |
+| `saves:list` | `Aether.instances.listWorlds` |
+| `instances:launch` | `Aether.instances.launchToServer`, `launchToWorld` |
 
 ---
 
@@ -120,6 +125,74 @@ onReady(() => {
   });
 });
 ```
+
+### Server lists with live status
+
+```typescript
+import { onReady, assertPermission } from '@aethermc/sdk';
+
+onReady(() => {
+  assertPermission('servers:list');
+
+  // One bulk call: pings run concurrently in Go and results are cached,
+  // so page revisits are instant. Never loop list()+ping() — sequential
+  // pings stall for seconds on each dead server.
+  const rows = Aether.servers.listWithStatus('my-instance', 3000);
+  rows.forEach((s) => {
+    console.log(`${s.name} — ${s.online ? `${s.playersOnline}/${s.playersMax}` : 'offline'}`);
+  });
+});
+```
+
+### Quick-launch into servers and worlds
+
+```typescript
+import { onReady, assertPermission } from '@aethermc/sdk';
+
+onReady(() => {
+  assertPermission('saves:list');
+  assertPermission('instances:launch');
+
+  // Singleplayer worlds, most recently played first.
+  const worlds = Aether.instances.listWorlds('my-instance');
+
+  // Launch straight into a server (all versions) or a world (1.20+).
+  Aether.instances.launchToServer('my-instance', 'play.example.com', 25565);
+  Aether.instances.launchToWorld('my-instance', worlds[0].id);
+});
+```
+
+### UI ↔ backend messaging (iframe bridge)
+
+```typescript
+// ui/script.js — runs inside the sidebar iframe:
+import { createIframeBridge } from '@aethermc/sdk';
+
+const bridge = createIframeBridge();
+const res = await bridge.send<{ servers: unknown[] }>({
+  type: 'get_servers',
+  instanceId: 'my-instance',
+});
+```
+
+```typescript
+// main.js — runs in the sandbox:
+Aether.ui.onMessage((msg: any) => {
+  if (msg.type === 'get_servers') {
+    const servers = Aether.servers.listWithStatus(msg.instanceId, 3000);
+    Aether.ui.postMessage({ type: 'get_servers_result', requestId: msg.requestId, success: true, servers });
+  }
+  return {};
+});
+```
+
+The bridge bakes in two rules — do not work around them:
+
+1. `targetOrigin` is `"*"` on purpose. Inside the iframe, `window.location`
+   is the iframe's own origin while `window.parent` is the Wails webview —
+   a computed origin never matches and every request is silently dropped.
+2. Inbound messages match ONLY on `requestId`. Backend payloads are
+   forwarded as-is (no marker), so filtering on one drops every reply.
 
 ### Discord Rich Presence
 

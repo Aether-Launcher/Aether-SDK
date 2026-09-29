@@ -21,6 +21,7 @@ var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: tru
 var index_exports = {};
 __export(index_exports, {
   assertPermission: () => assertPermission,
+  createIframeBridge: () => createIframeBridge,
   createLogger: () => createLogger,
   defineProvider: () => defineProvider,
   onReady: () => onReady
@@ -68,7 +69,12 @@ var permissionProbes = {
   "fs:download": () => !!Aether?.fs?.download,
   "launcher:modloader": () => !!Aether?.launcher?.registerModLoader,
   "discord:presence": () => !!Aether?.discord?.setActivity,
-  "skin:export": () => !!Aether?.skins?.export
+  "skin:export": () => !!Aether?.skins?.export,
+  "servers:list": () => !!Aether?.servers?.listWithStatus,
+  "servers:manage": () => !!Aether?.servers?.create,
+  "servers:process": () => !!Aether?.servers?.start,
+  "saves:list": () => !!Aether?.instances?.listWorlds,
+  "instances:launch": () => !!Aether?.instances?.launchToServer
 };
 function assertPermission(permission) {
   const probe = permissionProbes[permission];
@@ -78,9 +84,42 @@ function assertPermission(permission) {
     );
   }
 }
+function createIframeBridge(defaultTimeoutMs = 15e3) {
+  const pending = /* @__PURE__ */ new Map();
+  let reqCounter = 0;
+  if (typeof window !== "undefined" && typeof window.addEventListener === "function") {
+    window.addEventListener("message", (e) => {
+      const msg = e.data;
+      if (!msg || msg.requestId == null) return;
+      const p = pending.get(msg.requestId);
+      if (!p) return;
+      pending.delete(msg.requestId);
+      if (msg.error || msg.success === false) p.reject(new Error(msg.error || "failed"));
+      else p.resolve(msg);
+    });
+  }
+  return {
+    send(payload, timeoutMs) {
+      const ms = timeoutMs ?? defaultTimeoutMs;
+      return new Promise((resolve, reject) => {
+        const id = ++reqCounter;
+        payload.requestId = id;
+        pending.set(id, { resolve, reject });
+        window.parent.postMessage(payload, "*");
+        setTimeout(() => {
+          if (pending.has(id)) {
+            pending.delete(id);
+            reject(new Error("Request timed out"));
+          }
+        }, ms);
+      });
+    }
+  };
+}
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {
   assertPermission,
+  createIframeBridge,
   createLogger,
   defineProvider,
   onReady

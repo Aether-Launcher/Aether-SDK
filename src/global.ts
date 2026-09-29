@@ -11,6 +11,84 @@ export interface InstanceInfo {
   loader: string;
 }
 
+/** One singleplayer world, as returned by Aether.instances.listWorlds(). */
+export interface WorldInfo {
+  /** Saves folder name — pass this to launchToWorld(). */
+  id: string;
+  /** Display name from level.dat (falls back to the folder name). */
+  name: string;
+  /** Last-played timestamp in milliseconds since epoch (0 if unknown). */
+  lastPlayed: number;
+  /** Survival=0, Creative=1, Adventure=2, Spectator=3. */
+  gameMode: number;
+}
+
+/** One entry from an instance's servers.dat, via Aether.servers.list(). */
+export interface ServerEntry {
+  name: string;
+  ip: string;
+  hidden?: boolean;
+  hasIcon?: boolean;
+}
+
+/** Live ping result, via Aether.servers.ping(). */
+export interface PingResult {
+  online: boolean;
+  host: string;
+  port: number;
+  motd?: string;
+  playersOnline?: number;
+  playersMax?: number;
+  version?: string;
+  protocol?: number;
+  latencyMs?: number;
+}
+
+/**
+ * One servers.dat entry with its live status attached, via
+ * Aether.servers.listWithStatus(). Pings run concurrently in Go with a
+ * per-server budget and results are cached — prefer this over
+ * list()+ping() loops, which stall for seconds on each dead server.
+ */
+export interface ServerRow extends ServerEntry {
+  online: boolean;
+  /** Parsed host (ping echoes it even when offline). */
+  host: string;
+  /** Parsed port (default 25565). */
+  port: number;
+  motd?: string;
+  playersOnline?: number;
+  playersMax?: number;
+  version?: string;
+  latencyMs?: number;
+}
+
+/** One extension-managed server directory, via Aether.servers.listServers(). */
+export interface ManagedServer {
+  id: string;
+  name: string;
+}
+
+/** Supervised server process state, via start()/status(). */
+export interface ServerProcessStatus {
+  id: string;
+  running: boolean;
+  pid?: number;
+  startedAt?: number;
+  port?: number;
+  mcVersion?: string;
+}
+
+/** Options for Aether.servers.start(). Zero values get sane defaults. */
+export interface ServerStartOptions {
+  mcVersion?: string;
+  /** RAM in MiB (default 2048, clamped 512–16384). */
+  memoryMB?: number;
+  /** Jar filename override (default auto-detect: paper-*, purpur-*, server.jar). */
+  jarName?: string;
+  extraArgs?: string[];
+}
+
 /** Metadata returned by Aether.instances.listScreenshots(). */
 export interface ScreenshotInfo {
   /** Screenshot filename, e.g. "2024-01-15_12.30.00.png" */
@@ -169,6 +247,128 @@ export interface AetherInstances {
    * Requires permission: `screenshots:read`
    */
   getScreenshotData(instanceId: string, fileName: string): string;
+
+  /**
+   * List singleplayer worlds from an instance's `saves/` folder, most
+   * recently played first. Names come from `level.dat`.
+   * Requires permission: `saves:list`
+   */
+  listWorlds(instanceId: string): WorldInfo[];
+
+  /**
+   * Launch the game and auto-connect to a multiplayer server
+   * (vanilla `--server`/`--port`, all versions).
+   * Requires permission: `instances:launch`
+   */
+  launchToServer(instanceId: string, host: string, port: number): void;
+
+  /**
+   * Launch the game and auto-load a singleplayer world
+   * (Mojang Quick Play — requires Minecraft 1.20+).
+   * Requires permission: `instances:launch`
+   */
+  launchToWorld(instanceId: string, world: string): void;
+}
+
+export interface AetherServers {
+  /**
+   * Read an instance's `servers.dat` entries (no ping).
+   * Requires permission: `servers:list`
+   */
+  list(instanceId: string): ServerEntry[];
+
+  /**
+   * Ping one server. Unreachable servers yield `{ online: false }`,
+   * not an error — only malformed input throws.
+   * Requires permission: `servers:list`
+   */
+  ping(hostport: string): PingResult;
+
+  /**
+   * Bulk list with live status: entries plus ping results in one call.
+   * Pings run concurrently (max 6) with a per-server budget in
+   * milliseconds (default 3000, clamped 500–10000); results are cached
+   * per `servers.dat` content, so revisits are instant.
+   * Requires permission: `servers:list`
+   */
+  listWithStatus(instanceId: string, timeoutMs?: number): ServerRow[];
+
+  /**
+   * Create an extension-managed server directory with a starter
+   * `server.properties`.
+   * Requires permission: `servers:manage`
+   */
+  create(id: string, name?: string): ManagedServer;
+
+  /**
+   * List every extension-managed server directory.
+   * Requires permission: `servers:manage`
+   */
+  listServers(): ManagedServer[];
+
+  /**
+   * Delete a managed server directory (fires the launcher confirmation
+   * dialog; denial throws `user denied server deletion`).
+   * Requires permission: `servers:manage`
+   */
+  delete(id: string): void;
+
+  /**
+   * Read a text file inside a managed server directory (5 MiB cap).
+   * Requires permission: `servers:manage`
+   */
+  readFile(id: string, relpath: string): string;
+
+  /**
+   * Write base64 content inside a managed server directory
+   * (5 MiB cap, atomic write).
+   * Requires permission: `servers:manage`
+   */
+  writeFile(id: string, relpath: string, base64Data: string): void;
+
+  /**
+   * Start a supervised server process. Fails with an EULA error when
+   * `eula.txt` is not accepted — confirm with the user, call
+   * `acceptEula`, and retry. Max 2 concurrent servers.
+   * Requires permission: `servers:process`
+   */
+  start(id: string, opts?: ServerStartOptions): ServerProcessStatus;
+
+  /**
+   * Graceful `stop` (killed after 10 s).
+   * Requires permission: `servers:process`
+   */
+  stop(id: string): void;
+
+  /**
+   * Query a supervised server process.
+   * Requires permission: `servers:process`
+   */
+  status(id: string): ServerProcessStatus;
+
+  /**
+   * Write a console line to a running server's stdin (4 KB cap).
+   * Requires permission: `servers:process`
+   */
+  send(id: string, command: string): void;
+
+  /**
+   * Whether the managed server's `eula.txt` accepts the EULA.
+   * Requires permission: `servers:process`
+   */
+  eulaStatus(id: string): boolean;
+
+  /**
+   * Write `eula=true`. Call ONLY after explicit user confirmation.
+   * Requires permission: `servers:process`
+   */
+  acceptEula(id: string): void;
+
+  /**
+   * Last buffered log lines for a server, newest last (default 100).
+   * Requires permission: `servers:process`
+   */
+  recentLogs(id: string, n?: number): string[];
 }
 
 export interface AetherHTTP {
@@ -239,8 +439,10 @@ export interface AetherSkins {
 export interface AetherAPI {
   /** UI registration and IPC. Available with `ui:sidebar` / `ui:dialogs`. */
   ui: AetherUI;
-  /** Instance, mod, screenshot, and pack management. */
+  /** Instance, mod, screenshot, pack, world, and launch management. */
   instances: AetherInstances;
+  /** Multiplayer server lists, managed servers, and server processes. */
+  servers: AetherServers;
   /** HTTP client gated by the manifest host allowlist. */
   http: AetherHTTP;
   /** File download utility. */

@@ -105,7 +105,12 @@ export type AetherPermission =
   | 'fs:download'
   | 'launcher:modloader'
   | 'discord:presence'
-  | 'skin:export';
+  | 'skin:export'
+  | 'servers:list'
+  | 'servers:manage'
+  | 'servers:process'
+  | 'saves:list'
+  | 'instances:launch';
 
 /** Maps each permission to a function that detects whether the API is live. */
 const permissionProbes: Partial<Record<AetherPermission, () => boolean>> = {
@@ -126,6 +131,11 @@ const permissionProbes: Partial<Record<AetherPermission, () => boolean>> = {
   'launcher:modloader':    () => !!(Aether?.launcher?.registerModLoader),
   'discord:presence':      () => !!(Aether?.discord?.setActivity),
   'skin:export':           () => !!(Aether?.skins?.export),
+  'servers:list':          () => !!(Aether?.servers?.listWithStatus),
+  'servers:manage':        () => !!(Aether?.servers?.create),
+  'servers:process':       () => !!(Aether?.servers?.start),
+  'saves:list':            () => !!(Aether?.instances?.listWorlds),
+  'instances:launch':      () => !!(Aether?.instances?.launchToServer),
 };
 
 /**
@@ -145,4 +155,96 @@ export function assertPermission(permission: AetherPermission): void {
       `Add it to the permissions array in your manifest.json.`
     );
   }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// createIframeBridge — request/response IPC for extension UIs
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Envelope for UI → main.js requests. `requestId` is assigned by the bridge. */
+export interface BridgeRequest {
+  type: string;
+  requestId?: number;
+  [key: string]: unknown;
+}
+
+/** Envelope for main.js → UI responses. */
+export interface BridgeResponse {
+  type?: string;
+  requestId?: number;
+  success?: boolean;
+  error?: string;
+  [key: string]: unknown;
+}
+
+export interface IframeBridge {
+  /**
+   * Send a request to main.js and resolve with its response.
+   * Rejects on `success: false`/`error`, or with `Request timed out`.
+   */
+  send<T extends BridgeResponse>(payload: BridgeRequest, timeoutMs?: number): Promise<T>;
+}
+
+/**
+ * Create a request/response bridge between an extension UI iframe and its
+ * backend script (`Aether.ui.onMessage`). Handles `requestId` correlation
+ * and timeouts so every UI only writes its message handlers.
+ *
+ * Two rules are baked in — both learned from real timeout bugs, do not
+ * work around them:
+ *
+ * 1. `targetOrigin` is `"*"` on purpose. Inside the iframe,
+ *    `window.location` is the iframe's own origin
+ *    (`http://127.0.0.1:port`) while `window.parent` is the Wails webview
+ *    (`wails://…`) — a computed origin never matches, so `postMessage`
+ *    silently drops every request. Correlation via `requestId` is the
+ *    actual security boundary.
+ * 2. Inbound messages are matched ONLY on `requestId`. The launcher
+ *    forwards backend payloads as-is (no marker), so filtering on one
+ *    drops every reply.
+ *
+ * Requires manifest permission: `ui:sidebar`
+ *
+ * @example
+ * import { createIframeBridge } from '@aethermc/sdk';
+ * const bridge = createIframeBridge();
+ * const res = await bridge.send<{ servers: unknown[] }>({
+ *   type: 'get_servers', instanceId: 'my-instance',
+ * });
+ */
+export function createIframeBridge(defaultTimeoutMs = 15000): IframeBridge {
+  const pending = new Map<number, { resolve: (v: never) => void; reject: (e: Error) => void }>();
+  let reqCounter = 0;
+
+  if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+    window.addEventListener('message', (e: MessageEvent) => {
+      const msg = e.data as BridgeResponse | null | undefined;
+      // No marker check: backend responses carry none (see rule 2 above).
+      if (!msg || msg.requestId == null) return;
+      const p = pending.get(msg.requestId);
+      if (!p) return;
+      pending.delete(msg.requestId);
+      if (msg.error || msg.success === false) p.reject(new Error(msg.error || 'failed'));
+      else p.resolve(msg as never);
+    });
+  }
+
+  return {
+    send<T extends BridgeResponse>(payload: BridgeRequest, timeoutMs?: number): Promise<T> {
+      const ms = timeoutMs ?? defaultTimeoutMs;
+      return new Promise<T>((resolve, reject) => {
+        const id = ++reqCounter;
+        payload.requestId = id;
+        pending.set(id, { resolve: resolve as (v: never) => void, reject });
+        // "*" is correct here (see rule 1 above).
+        window.parent.postMessage(payload, '*');
+        setTimeout(() => {
+          if (pending.has(id)) {
+            pending.delete(id);
+            reject(new Error('Request timed out'));
+          }
+        }, ms);
+      });
+    },
+  };
 }
