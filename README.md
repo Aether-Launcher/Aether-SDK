@@ -8,7 +8,7 @@
   <img src="https://img.shields.io/badge/version-1.2.0-green?style=for-the-badge" alt="Version">
 </p>
 
-The official TypeScript SDK for building extensions for the **Aether Minecraft Launcher**. Provides full type definitions for the `Aether` global API injected by the sandbox runtime, plus helper utilities for safe permission checking, logging, and mod loader registration.
+The official TypeScript SDK for building extensions for the **Aether Minecraft Launcher**. Provides full type definitions for the `Aether` global API injected by the sandbox runtime — instances, mods, screenshots, servers, worlds, and quick-launch — plus helper utilities for permission checking, logging, mod loader registration, and iframe messaging.
 
 ---
 
@@ -17,6 +17,17 @@ The official TypeScript SDK for building extensions for the **Aether Minecraft L
 ```bash
 npm install --save-dev @aethermc/sdk
 ```
+
+## What's new in 1.2.0
+
+- Full types for the servers API: `list`, `ping`, `listWithStatus`,
+  managed servers (`create`, `listServers`, `delete`, `readFile`,
+  `writeFile`), and supervised processes (`start`, `stop`, `status`,
+  `send`, `eulaStatus`, `acceptEula`, `recentLogs`).
+- Worlds + quick-launch: `listWorlds`, `launchToServer`, `launchToWorld`.
+- New `createIframeBridge()` helper for sidebar UI ↔ backend messaging.
+- New permissions: `servers:list`, `servers:manage`, `servers:process`,
+  `saves:list`, `instances:launch`.
 
 ---
 
